@@ -10,7 +10,7 @@ export default async function handler(req, res) {
 
     if (error) {
       // Return defaults if settings table doesn't exist yet
-      return res.status(200).json({ daily_limit: 4, base_price: 12, currency: '£' })
+      return res.status(200).json({ daily_limit: 4, base_price: 12, currency: '$' })
     }
     return res.status(200).json(data)
   }
