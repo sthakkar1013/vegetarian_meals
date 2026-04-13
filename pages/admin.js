@@ -11,7 +11,7 @@ export default function Admin() {
   const [tab, setTab] = useState('meals')
   const [meals, setMeals] = useState([])
   const [orders, setOrders] = useState([])
-  const [settings, setSettings] = useState({ daily_limit: 4, base_price: 12, currency: '£' })
+  const [settings, setSettings] = useState({ daily_limit: 4, base_price: 12, currency: '$' })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [toast, setToast] = useState(null)
