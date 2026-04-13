@@ -4,7 +4,7 @@ import Link from 'next/link'
 
 export default function Home() {
   const [meals, setMeals] = useState([])
-  const [settings, setSettings] = useState({ daily_limit: 4, base_price: 12, currency: '£' })
+  const [settings, setSettings] = useState({ daily_limit: 4, base_price: 12, currency: '$' })
   const [loading, setLoading] = useState(true)
   const [selectedMeal, setSelectedMeal] = useState(null)
   const [showSuccess, setShowSuccess] = useState(false)
