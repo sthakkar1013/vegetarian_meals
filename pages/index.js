@@ -4,7 +4,7 @@ import Link from 'next/link'
 
 export default function Home() {
   const [meals, setMeals] = useState([])
-  const [settings, setSettings] = useState({ daily_limit: 4, base_price: 12, currency: '$' })
+  const [settings, setSettings] = useState({ daily_limit: 4, base_price: 25, currency: '$' })
   const [loading, setLoading] = useState(true)
   const [selectedMeal, setSelectedMeal] = useState(null)
   const [showSuccess, setShowSuccess] = useState(false)
@@ -119,7 +119,7 @@ export default function Home() {
         <div className="section-header">
           <div className="date-badge">📅 {today}</div>
           <h2>Today's Menu</h2>
-          <p>All meals include rice, sabzi, dal or curry, a side of salad or raita, and a small sweet or snack.</p>
+          <p>All meals include roti, rice, sabzi, dal or curry, a side of salad or raita, and a small sweet or snack.</p>
         </div>
 
         {loading ? (
