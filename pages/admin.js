@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import Head from 'next/head'
 import Link from 'next/link'
 
-const ADMIN_PASSWORD    = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || 'khana123'
+const ADMIN_PASSWORD    = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || 'Calcutta@78'
 const SESSION_TIMEOUT_MS = 15 * 60 * 1000  // 15 min inactivity → auto logout
 const SESSION_WARNING_MS = 13 * 60 * 1000  // warn 2 min before expiry
 
@@ -13,7 +13,7 @@ export default function Admin() {
   const [tab, setTab]                   = useState('meals')
   const [meals, setMeals]               = useState([])
   const [orders, setOrders]             = useState([])
-  const [settings, setSettings]         = useState({ daily_limit: 4, base_price: 12, currency: '£' })
+  const [settings, setSettings]         = useState({ daily_limit: 4, base_price: 25, currency: '$' })
   const [loading, setLoading]           = useState(true)
   const [saving, setSaving]             = useState(false)
   const [addingMeal, setAddingMeal]     = useState(false)
