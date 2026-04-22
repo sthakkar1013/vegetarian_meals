@@ -8,21 +8,32 @@ export default async function handler(req, res) {
       .eq('id', 1)
       .single()
 
-    if (error) {
-      // Return defaults if settings table doesn't exist yet
-      return res.status(200).json({ daily_limit: 4, base_price: 12, currency: '$' })
+    // Always return something usable — fall back to defaults if table missing
+    if (error || !data) {
+      return res.status(200).json({ daily_limit: 4, base_price: 12, currency: '£' })
     }
     return res.status(200).json(data)
   }
 
   if (req.method === 'PATCH') {
     const updates = req.body
+
+    // Try upsert — insert row id=1 if it doesn't exist, update if it does
     const { data, error } = await supabase
       .from('settings')
-      .upsert({ id: 1, ...updates })
+      .upsert({
+        id: 1,
+        daily_limit: updates.daily_limit,
+        base_price:  updates.base_price,
+        currency:    updates.currency,
+        updated_at:  new Date().toISOString(),
+      }, { onConflict: 'id' })
       .select()
 
-    if (error) return res.status(500).json({ error: error.message })
+    if (error) {
+      console.error('Settings PATCH error:', error)
+      return res.status(500).json({ error: error.message, hint: error.hint || '' })
+    }
     return res.status(200).json(data[0])
   }
 
