@@ -10,7 +10,7 @@ const DISH_IMAGES = [
   // '/dishes/dal.jpg',
   // '/dishes/sabzi.jpg',
   // '/dishes/thali.jpg',
-  // '/dishes/roti.jpg',
+  '/dishes/ChowmeinNVegMacnchurain.jpg',
   // '/dishes/raita.jpg',
   // '/dishes/sweet.jpg',
 ]
@@ -54,8 +54,8 @@ export default function About() {
       <nav>
         <span className="nav-brand">Ghar Ka <span>Khana</span></span>
         <div className="nav-links">
-          <Link href="/" className="nav-btn">Today's Menu</Link>
           <Link href="/about" className="nav-btn active">About Us</Link>
+          <Link href="/" className="nav-btn">Today's Menu</Link>
           <Link href="/admin" className="nav-btn">Admin</Link>
         </div>
       </nav>
