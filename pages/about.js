@@ -1,53 +1,48 @@
 import Head from 'next/head'
 import Link from 'next/link'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 
 // ─── ADD YOUR DISH IMAGES HERE ───────────────────────────────────────────────
-// Put image files in the /public/dishes/ folder on GitHub
-// Then add the filenames to this list below
-// Example: if you add "dal-makhani.jpg" to public/dishes/, add '/dishes/dal-makhani.jpg'
+// 1. Put photo files into the /public/dishes/ folder on GitHub
+// 2. Add the filenames to this list below
+// Example: if you upload "dal.jpg" to public/dishes/, add '/dishes/dal.jpg'
 const DISH_IMAGES = [
-  // '/dishes/dal-makhani.jpg',
-  // '/dishes/rajma-chawal.jpg',
-  // '/dishes/palak-paneer.jpg',
-  '/dishes/ChowmeinNVegMacnchurain.jpg',
+  // '/dishes/dal.jpg',
+  // '/dishes/sabzi.jpg',
   // '/dishes/thali.jpg',
-  // Add more here as you add photos to public/dishes/
+  // '/dishes/roti.jpg',
+  // '/dishes/raita.jpg',
+  // '/dishes/sweet.jpg',
 ]
 
-// Placeholder images shown until you add real ones
-// These are warm food-toned placeholder blocks
-const PLACEHOLDER_COUNT = 6
+// How many placeholder boxes to show until real photos are added
+const PLACEHOLDER_COUNT = 8
 
 export default function About() {
-  const [floatingImages, setFloatingImages] = useState([])
-  const textRef = useRef(null)
+  const [scattered, setScattered] = useState([])
 
-  // Decide which images to show — real ones or placeholders
   const images = DISH_IMAGES.length > 0
     ? DISH_IMAGES
-    : Array.from({ length: PLACEHOLDER_COUNT }, (_, i) => null)
+    : Array.from({ length: PLACEHOLDER_COUNT }, () => null)
 
   useEffect(() => {
-    // Randomly position images around the text on each load
-    const positions = generatePositions(images.length)
-    setFloatingImages(positions)
-  }, [])
-
-  function generatePositions(count) {
-    // Creates varied positions — some left-floating, some right, some inline
-    const layouts = ['float-left', 'float-right', 'float-left', 'float-right', 'float-left', 'float-right']
-    const rotations = [-3, 2, -1.5, 3, -2, 1]
-    const sizes = ['sm', 'md', 'md', 'sm', 'lg', 'md']
-
-    return Array.from({ length: count }, (_, i) => ({
+    // Generate random scatter positions on mount so they differ each page load
+    const items = images.map((src, i) => ({
       id: i,
-      layout: layouts[i % layouts.length],
-      rotation: rotations[i % rotations.length],
-      size: sizes[i % sizes.length],
-      delay: i * 0.15,
+      src,
+      // Random rotation between -12 and +12 degrees
+      rotation: (Math.random() * 24 - 12).toFixed(1),
+      // Random top offset within a band — spread across page height
+      // We split the page into bands so images don't all cluster at top
+      topPct: (i * (90 / images.length) + Math.random() * 8).toFixed(1),
+      // Alternate left/right with a random inward nudge
+      side: i % 2 === 0 ? 'left' : 'right',
+      nudge: (Math.random() * 20).toFixed(1),
+      // Random subtle scale between 0.92 and 1.05
+      scale: (0.92 + Math.random() * 0.13).toFixed(3),
     }))
-  }
+    setScattered(items)
+  }, [])
 
   return (
     <>
@@ -65,7 +60,7 @@ export default function About() {
         </div>
       </nav>
 
-      {/* HERO STRIP */}
+      {/* HERO */}
       <div className="about-hero">
         <div className="about-hero-inner">
           <div className="hero-tag">🌿 Our Story</div>
@@ -74,61 +69,72 @@ export default function About() {
       </div>
 
       <main className="about-main">
-        <div className="about-container">
 
-          {/* FLOATING IMAGE MOSAIC + TEXT */}
-          <div className="story-wrap" ref={textRef}>
-
-            {/* Images injected before/between paragraphs */}
-            {floatingImages.slice(0, 2).map(img => (
-              <FloatImage key={img.id} img={img} src={images[img.id]} />
-            ))}
-
-            <div className="story-block">
-              <h2 className="story-heading">Home cooked veg meals</h2>
-              <p className="story-text drop-cap">
-                Was your garlic washed?
-                The vision behind setting this up is simple — I am an OCD who washes their
-                garlic and onions post peeling before putting them into my food. When ordering
-                from outside I often wonder if the vegetables used would have been cleaned before
-                cooking the way I do?
-              </p>
+        {/* SCATTERED IMAGES LAYER — absolutely positioned behind text */}
+        <div className="scatter-layer" aria-hidden="true">
+          {scattered.map(img => (
+            <div
+              key={img.id}
+              className={`scatter-img scatter-${img.side}`}
+              style={{
+                top: `${img.topPct}%`,
+                [img.side]: `${img.nudge}px`,
+                transform: `rotate(${img.rotation}deg) scale(${img.scale})`,
+              }}
+            >
+              {img.src ? (
+                <img src={img.src} alt="Dish from Ghar Ka Khana" loading="lazy" />
+              ) : (
+                <div className="scatter-placeholder">
+                  <span className="ph-icon">📸</span>
+                  <span className="ph-label">your photo</span>
+                </div>
+              )}
             </div>
+          ))}
+        </div>
 
-            {floatingImages.slice(2, 4).map(img => (
-              <FloatImage key={img.id} img={img} src={images[img.id]} />
-            ))}
+        {/* CONTENT */}
+        <div className="about-content">
 
-            <div className="story-block">
-              <p className="story-text">
-                I have often found the okra tops within the sabzi I would get from outside —
-                or even the packaged cut vegetables I had once upon a time picked up for easing
-                my burden. Small things that stay with you.
-              </p>
-              <p className="story-text">
-                I try to cook fresh for my home on a daily basis with fresh vegetables
-                — except for frozen peas and corn — since I place a higher value on
-                unpackaged and unfrozen food. Every meal starts with whole, clean ingredients
-                prepared the way I would want them prepared for my own family.
-              </p>
-            </div>
-
-            {floatingImages.slice(4).map(img => (
-              <FloatImage key={img.id} img={img} src={images[img.id]} />
-            ))}
-
-            <div className="story-block">
-              <p className="story-text">
-                I would like to offer others a chance to enjoy the food I cook — and hence
-                I will be starting by taking only <strong>2 orders a day</strong>. Small,
-                intentional, and made properly. That is what Ghar Ka Khana is about.
-              </p>
-            </div>
-
-            <div className="clearfix" />
+          {/* PULL HEADING */}
+          <div className="pull-heading">
+            <h2>Was your garlic washed?</h2>
+            <div className="pull-line" />
           </div>
 
-          {/* VALUES STRIP */}
+          {/* STORY */}
+          <div className="story-card">
+            <h3 className="story-title">Home cooked veg meals</h3>
+
+            <p className="story-text drop-cap">
+              The vision behind setting this up is simple — I am an OCD who washes their
+              garlic and onions post peeling before putting them into my food. When ordering
+              from outside I often wonder if the vegetables used would have been cleaned before
+              cooking the way I do?
+            </p>
+
+            <p className="story-text">
+              I have often found the okra tops within the sabzi I would get from outside —
+              or even the packaged cut vegetables I had once upon a time picked up for easing
+              my burden. Small things that stay with you.
+            </p>
+
+            <p className="story-text">
+              I try to cook fresh for my home on a daily basis with fresh vegetables
+              — except for frozen peas and corn — since I place a higher value on
+              unpackaged and unfrozen food. Every meal starts with whole, clean ingredients
+              prepared the way I would want them prepared for my own family.
+            </p>
+
+            <p className="story-text">
+              I would like to offer others a chance to enjoy the food I cook — and hence
+              I will be starting by taking only <strong>2 orders a day</strong>. Small,
+              intentional, and made properly. That is what Ghar Ka Khana is about.
+            </p>
+          </div>
+
+          {/* VALUES */}
           <div className="values-strip">
             <div className="value-card">
               <div className="value-icon">🧄</div>
@@ -186,130 +192,168 @@ export default function About() {
         }
         .about-hero h1 em { color: var(--turmeric); font-style: italic; }
 
-        /* ── MAIN ── */
-        .about-main { background: var(--cream); }
-        .about-container { max-width: 860px; margin: 0 auto; padding: 3rem 1.5rem 4rem; }
-
-        /* ── STORY ── */
-        .story-wrap { position: relative; margin-bottom: 3rem; }
-        .story-block { margin-bottom: 1.8rem; }
-        .story-heading {
-          font-family: 'Playfair Display', serif;
-          font-size: 1.7rem;
-          color: var(--dark);
-          margin-bottom: 1rem;
-          line-height: 1.2;
-        }
-        .story-text {
-          font-size: 1.05rem;
-          line-height: 1.85;
-          color: var(--text);
-          margin-bottom: 1.1rem;
-          font-weight: 300;
-        }
-        .drop-cap::first-letter {
-          font-family: 'Playfair Display', serif;
-          font-size: 3.8rem;
-          font-weight: 700;
-          color: var(--saffron);
-          float: left;
-          line-height: 0.75;
-          margin: 0.1rem 0.12em 0 0;
-        }
-        .story-text strong { color: var(--saffron); font-weight: 600; }
-        .clearfix::after { content: ''; display: table; clear: both; }
-
-        /* ── FLOATING IMAGES ── */
-        .float-img-wrap {
-          border-radius: 10px;
+        /* ── PAGE LAYOUT ── */
+        .about-main {
+          position: relative;
+          background: var(--cream);
+          min-height: 100vh;
           overflow: hidden;
-          box-shadow: 0 6px 24px rgba(44,24,16,0.15);
-          margin-bottom: 1.2rem;
-          transition: transform 0.3s ease;
-          background: white;
-          border: 3px solid white;
         }
-        .float-img-wrap:hover { transform: scale(1.02) rotate(0deg) !important; }
-        .float-left {
-          float: left;
-          margin-right: 1.8rem;
-          margin-bottom: 1rem;
-          clear: left;
-        }
-        .float-right {
-          float: right;
-          margin-left: 1.8rem;
-          margin-bottom: 1rem;
-          clear: right;
-        }
-        .size-sm { width: 180px; height: 160px; }
-        .size-md { width: 220px; height: 190px; }
-        .size-lg { width: 260px; height: 220px; }
 
-        .float-img-wrap img {
+        /* ── SCATTERED IMAGES LAYER ── */
+        .scatter-layer {
+          position: absolute;
+          inset: 0;
+          pointer-events: none;
+          z-index: 0;
+        }
+        .scatter-img {
+          position: absolute;
+          width: 110px;
+          height: 110px;
+          border-radius: 8px;
+          overflow: hidden;
+          box-shadow: 0 4px 16px rgba(44,24,16,0.18);
+          border: 3px solid white;
+          transition: transform 0.3s ease;
+        }
+        .scatter-img img {
           width: 100%;
           height: 100%;
           object-fit: cover;
           display: block;
         }
-        .placeholder-img {
+        .scatter-placeholder {
           width: 100%;
           height: 100%;
           display: flex;
           flex-direction: column;
           align-items: center;
           justify-content: center;
-          gap: 8px;
-          background: linear-gradient(135deg, rgba(232,98,26,0.08), rgba(242,168,29,0.12));
-          color: var(--light-brown);
-          font-size: 12px;
-          text-align: center;
-          padding: 1rem;
+          gap: 4px;
+          background: linear-gradient(135deg,
+            rgba(232,98,26,0.10),
+            rgba(242,168,29,0.14));
         }
-        .placeholder-img .ph-icon { font-size: 2rem; opacity: 0.5; }
-        .placeholder-img .ph-text { opacity: 0.6; line-height: 1.4; }
+        .ph-icon { font-size: 1.6rem; opacity: 0.45; }
+        .ph-label {
+          font-size: 9px;
+          color: var(--light-brown);
+          opacity: 0.7;
+          text-align: center;
+          letter-spacing: 0.04em;
+        }
+
+        /* ── CONTENT (sits above scatter layer) ── */
+        .about-content {
+          position: relative;
+          z-index: 1;
+          max-width: 640px;
+          margin: 0 auto;
+          padding: 3rem 1.5rem 4rem;
+        }
+
+        /* ── PULL HEADING ── */
+        .pull-heading {
+          text-align: center;
+          margin-bottom: 2.5rem;
+        }
+        .pull-heading h2 {
+          font-family: 'Playfair Display', serif;
+          font-size: clamp(1.8rem, 4vw, 2.8rem);
+          color: var(--dark);
+          line-height: 1.2;
+          margin-bottom: 0.8rem;
+        }
+        .pull-line {
+          width: 60px;
+          height: 3px;
+          background: linear-gradient(90deg, var(--saffron), var(--turmeric));
+          margin: 0 auto;
+          border-radius: 2px;
+        }
+
+        /* ── STORY CARD ── */
+        .story-card {
+          background: rgba(255,255,255,0.88);
+          backdrop-filter: blur(8px);
+          border-radius: 16px;
+          padding: 2rem 2.2rem;
+          border: 1px solid rgba(196,149,106,0.2);
+          box-shadow: 0 4px 24px rgba(44,24,16,0.07);
+          margin-bottom: 2.5rem;
+        }
+        .story-title {
+          font-family: 'Playfair Display', serif;
+          font-size: 1.4rem;
+          color: var(--brown);
+          margin-bottom: 1.2rem;
+          padding-bottom: 0.8rem;
+          border-bottom: 1px solid rgba(196,149,106,0.2);
+        }
+        .story-text {
+          font-size: 1rem;
+          line-height: 1.85;
+          color: var(--text);
+          margin-bottom: 1.1rem;
+          font-weight: 300;
+        }
+        .story-text:last-child { margin-bottom: 0; }
+        .drop-cap::first-letter {
+          font-family: 'Playfair Display', serif;
+          font-size: 3.6rem;
+          font-weight: 700;
+          color: var(--saffron);
+          float: left;
+          line-height: 0.78;
+          margin: 0.08rem 0.12em 0 0;
+        }
+        .story-text strong { color: var(--saffron); font-weight: 600; }
 
         /* ── VALUES ── */
         .values-strip {
           display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-          gap: 1rem;
-          margin-bottom: 3rem;
-          padding: 2rem;
-          background: white;
-          border-radius: 16px;
-          border: 1px solid rgba(196,149,106,0.2);
+          grid-template-columns: repeat(2, 1fr);
+          gap: 0.8rem;
+          margin-bottom: 2.5rem;
         }
-        .value-card { text-align: center; padding: 1rem 0.5rem; }
-        .value-icon { font-size: 1.8rem; margin-bottom: 0.6rem; }
+        .value-card {
+          background: rgba(255,255,255,0.88);
+          backdrop-filter: blur(8px);
+          border-radius: 12px;
+          padding: 1.2rem;
+          border: 1px solid rgba(196,149,106,0.18);
+          text-align: center;
+        }
+        .value-icon { font-size: 1.6rem; margin-bottom: 0.5rem; }
         .value-title {
           font-family: 'Playfair Display', serif;
-          font-size: 1rem;
+          font-size: 0.95rem;
           font-weight: 700;
           color: var(--dark);
-          margin-bottom: 0.4rem;
+          margin-bottom: 0.3rem;
         }
-        .value-desc { font-size: 12px; color: var(--muted); line-height: 1.6; }
+        .value-desc { font-size: 11px; color: var(--muted); line-height: 1.55; }
 
         /* ── CTA ── */
         .about-cta {
           text-align: center;
-          padding: 2.5rem;
+          padding: 2rem 2rem;
           background: linear-gradient(135deg, var(--dark), var(--brown));
-          border-radius: 16px;
+          border-radius: 14px;
         }
         .about-cta p {
           font-family: 'Playfair Display', serif;
-          font-size: 1.3rem;
+          font-size: 1.2rem;
           color: rgba(255,255,255,0.85);
-          margin-bottom: 1.2rem;
+          margin-bottom: 1.1rem;
           font-style: italic;
         }
         .cta-btn {
           display: inline-block;
           background: var(--saffron);
           color: white;
-          padding: 12px 28px;
+          padding: 11px 26px;
           border-radius: 6px;
           text-decoration: none;
           font-size: 14px;
@@ -318,38 +362,14 @@ export default function About() {
         }
         .cta-btn:hover { background: var(--turmeric); color: var(--dark); }
 
+        /* ── MOBILE ── */
         @media (max-width: 600px) {
-          .float-left, .float-right {
-            float: none !important;
-            margin: 0 auto 1.2rem !important;
-            display: block;
-          }
-          .size-sm, .size-md, .size-lg { width: 100%; height: 200px; }
+          /* Hide scattered images on mobile — too cramped */
+          .scatter-layer { display: none; }
+          .story-card { padding: 1.4rem 1.2rem; }
           .values-strip { grid-template-columns: 1fr 1fr; }
         }
       `}</style>
     </>
-  )
-}
-
-// ── FLOATING IMAGE COMPONENT ──────────────────────────────────────────────────
-function FloatImage({ img, src }) {
-  return (
-    <div
-      className={`float-img-wrap ${img.layout} size-${img.size}`}
-      style={{
-        transform: `rotate(${img.rotation}deg)`,
-        animationDelay: `${img.delay}s`,
-      }}
-    >
-      {src ? (
-        <img src={src} alt="Dish from Ghar Ka Khana" loading="lazy" />
-      ) : (
-        <div className="placeholder-img">
-          <span className="ph-icon">📸</span>
-          <span className="ph-text">Your dish<br />photo here</span>
-        </div>
-      )}
-    </div>
   )
 }
