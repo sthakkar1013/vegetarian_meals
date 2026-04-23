@@ -149,7 +149,24 @@ main { max-width: 900px; margin: 0 auto; padding: 3rem 1.5rem; }
   color: white; padding: 4px 12px; border-radius: 20px; font-size: 15px; font-weight: 500;
 }
 .meal-body { padding: 1.4rem; }
-.meal-desc { color: var(--muted); font-size: 0.87rem; line-height: 1.65; margin-bottom: 1rem; }
+.meal-desc { margin-bottom: 1rem; }
+.meal-desc-line {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  padding: 3px 0;
+  font-size: 0.87rem;
+  color: var(--muted);
+  line-height: 1.5;
+  border-bottom: 1px dashed rgba(196,149,106,0.12);
+}
+.meal-desc-line:last-child { border-bottom: none; }
+.desc-bullet {
+  color: var(--saffron);
+  font-size: 1rem;
+  flex-shrink: 0;
+  font-weight: 700;
+}
 .meal-components { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 1.2rem; }
 .component-tag {
   background: rgba(232,98,26,0.07);

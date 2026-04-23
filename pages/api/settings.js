@@ -10,7 +10,7 @@ export default async function handler(req, res) {
 
     // Always return something usable — fall back to defaults if table missing
     if (error || !data) {
-      return res.status(200).json({ daily_limit: 4, base_price: 12, currency: '£' })
+      return res.status(200).json({ daily_limit: 4, base_price: 25, currency: '$' })
     }
     return res.status(200).json(data)
   }

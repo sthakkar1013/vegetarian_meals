@@ -88,6 +88,7 @@ export default function Home() {
         <span className="nav-brand">Ghar Ka <span>Khana</span></span>
         <div className="nav-links">
           <Link href="/" className="nav-btn active">Today's Menu</Link>
+          <Link href="/about" className="nav-btn">About Us</Link>
           <Link href="/admin" className="nav-btn">Admin</Link>
         </div>
       </nav>
@@ -147,7 +148,14 @@ export default function Home() {
                     <div className="meal-price">{settings.currency}{meal.price}</div>
                   </div>
                   <div className="meal-body">
-                    <p className="meal-desc">{meal.description}</p>
+                    <div className="meal-desc">
+                      {(meal.description || '').split('\n').filter(line => line.trim()).map((line, i) => (
+                        <div key={i} className="meal-desc-line">
+                          <span className="desc-bullet">·</span>
+                          <span>{line.trim()}</span>
+                        </div>
+                      ))}
+                    </div>
                     <div className="meal-components">
                       {components.map((c, i) => (
                         <span key={i} className="component-tag">{c}</span>
