@@ -286,6 +286,7 @@ export default function Admin() {
       <nav>
         <span className="nav-brand">Ghar Ka <span>Khana</span></span>
         <div className="nav-links">
+          <Link href="/" className="nav-btn">About Us</Link>
           <Link href="/" className="nav-btn">View Menu</Link>
           <button className="nav-btn" onClick={() => doLogout('manual')}>Logout</button>
         </div>
