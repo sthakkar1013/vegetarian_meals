@@ -10,7 +10,7 @@ const DISH_IMAGES = [
   // '/dishes/dal-makhani.jpg',
   // '/dishes/rajma-chawal.jpg',
   // '/dishes/palak-paneer.jpg',
-  // '/dishes/sabzi.jpg',
+  '/dishes/ChowmeinNVegMacnchurain.jpg',
   // '/dishes/thali.jpg',
   // Add more here as you add photos to public/dishes/
 ]
