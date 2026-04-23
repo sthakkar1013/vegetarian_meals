@@ -87,8 +87,8 @@ export default function Home() {
       <nav>
         <span className="nav-brand">Ghar Ka <span>Khana</span></span>
         <div className="nav-links">
-          <Link href="/" className="nav-btn active">Today's Menu</Link>
           <Link href="/about" className="nav-btn">About Us</Link>
+          <Link href="/" className="nav-btn active">Today's Menu</Link>
           <Link href="/admin" className="nav-btn">Admin</Link>
         </div>
       </nav>
