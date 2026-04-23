@@ -87,6 +87,7 @@ export default function About() {
             <div className="story-block">
               <h2 className="story-heading">Home cooked veg meals</h2>
               <p className="story-text drop-cap">
+                Was your garlic washed?
                 The vision behind setting this up is simple — I am an OCD who washes their
                 garlic and onions post peeling before putting them into my food. When ordering
                 from outside I often wonder if the vegetables used would have been cleaned before
