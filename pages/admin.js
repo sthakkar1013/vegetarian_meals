@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import Head from 'next/head'
 import Link from 'next/link'
 
-const ADMIN_PASSWORD    = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || 'Calcutta@78'
+const ADMIN_PASSWORD    = process.env.NEXT_PUBLIC_ADMIN_PASSWORD
 const SESSION_TIMEOUT_MS = 15 * 60 * 1000  // 15 min inactivity → auto logout
 const SESSION_WARNING_MS = 13 * 60 * 1000  // warn 2 min before expiry
 
