@@ -2,9 +2,9 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import Head from 'next/head'
 import Link from 'next/link'
 
-const ADMIN_PASSWORD    = process.env.NEXT_PUBLIC_ADMIN_PASSWORD
-const SESSION_TIMEOUT_MS = 15 * 60 * 1000  // 15 min inactivity → auto logout
-const SESSION_WARNING_MS = 13 * 60 * 1000  // warn 2 min before expiry
+const ADMIN_PASSWORD     = process.env.NEXT_PUBLIC_ADMIN_PASSWORD
+const SESSION_TIMEOUT_MS = 15 * 60 * 1000
+const SESSION_WARNING_MS = 13 * 60 * 1000
 
 export default function Admin() {
   const [loggedIn, setLoggedIn]         = useState(false)
@@ -19,14 +19,17 @@ export default function Admin() {
   const [addingMeal, setAddingMeal]     = useState(false)
   const [toast, setToast]               = useState(null)
   const [sessionWarning, setSessionWarning] = useState(false)
-  const timeoutRef  = useRef(null)
-  const warningRef  = useRef(null)
+  const [historyMeal, setHistoryMeal]   = useState(null)  // meal_key being viewed
+  const [historyData, setHistoryData]   = useState([])
+  const [historyLoading, setHistoryLoading] = useState(false)
+  const timeoutRef = useRef(null)
+  const warningRef = useRef(null)
 
   const today = new Date().toLocaleDateString('en-GB', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
   })
 
-  // ── SESSION TIMEOUT ───────────────────────────────────────────────────────
+  // ── SESSION ───────────────────────────────────────────────────────────────
 
   const doLogout = useCallback((reason) => {
     clearTimeout(timeoutRef.current)
@@ -60,7 +63,6 @@ export default function Admin() {
     }
   }, [loggedIn, resetSessionTimer])
 
-  // On mount — restore session only if not expired
   useEffect(() => {
     const saved     = sessionStorage.getItem('admin_auth')
     const loginTime = parseInt(sessionStorage.getItem('admin_login_time') || '0')
@@ -106,17 +108,31 @@ export default function Admin() {
         fetch('/api/settings'),
       ])
       const [md, od, sd] = await Promise.all([mr.json(), or.json(), sr.json()])
-
       if (!mr.ok) { showToast('Meals error: ' + (md.error || mr.status), 'error', 8000); return }
       if (!or.ok) { showToast('Orders error: ' + (od.error || or.status), 'error', 8000); return }
-
       setMeals(Array.isArray(md) ? md : [])
       setOrders(Array.isArray(od) ? od : [])
       if (sd && !sd.error) setSettings(sd)
     } catch (err) {
-      showToast('Network error loading data: ' + err.message, 'error', 8000)
+      showToast('Network error: ' + err.message, 'error', 8000)
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function fetchHistory(meal_key, mealName) {
+    setHistoryMeal(mealName)
+    setHistoryLoading(true)
+    setTab('history')
+    try {
+      const res  = await fetch(`/api/meals/history?meal_key=${meal_key}`)
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || res.status)
+      setHistoryData(data)
+    } catch (err) {
+      showToast('Failed to load history: ' + err.message, 'error')
+    } finally {
+      setHistoryLoading(false)
     }
   }
 
@@ -130,30 +146,25 @@ export default function Admin() {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name:        'New Meal — click Save Changes to edit',
+          name:        'New Meal — edit me',
           type:        'Vegetarian',
           description: 'Add your meal description here.',
           components:  ['Rice', 'Sabzi', 'Dal', 'Salad', 'Sweet'],
-          price:       Number(settings.base_price) || 12,
-          sold:        0,
+          price:       Number(settings.base_price) || 25,
           special:     false,
           enabled:     true,
         }),
       })
       let data = {}
       try { data = await res.json() } catch {}
-
       if (!res.ok) {
-        const msg = data.error || data.message || ('HTTP ' + res.status)
-        showToast('Add meal failed: ' + msg, 'error', 10000)
-        console.error('addMeal error', res.status, data)
+        showToast('Add meal failed: ' + (data.error || 'HTTP ' + res.status), 'error', 10000)
         return
       }
       setMeals(prev => [...prev, data])
-      showToast('New meal added — edit and save it below ✓', 'success', 5000)
+      showToast('New meal added — scroll down to edit ✓', 'success', 5000)
     } catch (err) {
       showToast('Network error: ' + err.message, 'error', 10000)
-      console.error('addMeal exception', err)
     } finally {
       setAddingMeal(false)
     }
@@ -162,14 +173,15 @@ export default function Admin() {
   async function saveMeal(meal) {
     setSaving(true)
     try {
-      const { id, created_at, ...fields } = meal
-      if (typeof fields.components === 'string') {
-        fields.components = fields.components.split(',').map(s => s.trim()).filter(Boolean)
+      let components = meal.components || []
+      if (typeof components === 'string') {
+        components = components.split(',').map(s => s.trim()).filter(Boolean)
       }
-      const res = await fetch('/api/meals/' + id, {
+      // Use the physical row id — API resolves meal_key internally
+      const res = await fetch(`/api/meals/${meal.id}`, {
         method:  'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify(fields),
+        body:    JSON.stringify({ ...meal, components }),
       })
       let data = {}
       try { data = await res.json() } catch {}
@@ -177,7 +189,9 @@ export default function Admin() {
         showToast('Save failed: ' + (data.error || res.status), 'error', 8000)
         return
       }
-      showToast('Saved ✓')
+      // Replace old row with new version row in local state
+      setMeals(prev => prev.map(m => m.id === meal.id ? data : m))
+      showToast('Saved — new version created ✓')
     } catch (err) {
       showToast('Network error saving: ' + err.message, 'error', 8000)
     } finally {
@@ -185,13 +199,18 @@ export default function Admin() {
     }
   }
 
-  async function deleteMeal(id) {
-    if (!confirm('Remove this meal from the menu?')) return
+  async function deleteMeal(meal) {
+    if (!confirm(`Remove "${meal.name}" from the menu?\n\nThe meal history will be preserved in the database.`)) return
     try {
-      const res = await fetch('/api/meals/' + id, { method: 'DELETE' })
-      if (!res.ok) { showToast('Failed to remove meal.', 'error'); return }
-      setMeals(prev => prev.filter(m => m.id !== id))
-      showToast('Meal removed ✓')
+      const res = await fetch(`/api/meals/${meal.id}`, { method: 'DELETE' })
+      let data = {}
+      try { data = await res.json() } catch {}
+      if (!res.ok) {
+        showToast('Failed to remove meal: ' + (data.error || res.status), 'error')
+        return
+      }
+      setMeals(prev => prev.filter(m => m.id !== meal.id))
+      showToast('Meal removed — history preserved ✓')
     } catch (err) {
       showToast('Network error: ' + err.message, 'error')
     }
@@ -226,7 +245,7 @@ export default function Admin() {
   }
 
   async function resetDay() {
-    if (!confirm('Reset all sold counts and clear all orders for a new day?\nThis cannot be undone.')) return
+    if (!confirm('Reset all sold counts and clear all orders for a new day?\nMeal history is always preserved.')) return
     try {
       const res = await fetch('/api/reset', { method: 'POST' })
       if (!res.ok) { showToast('Reset failed.', 'error'); return }
@@ -237,7 +256,35 @@ export default function Admin() {
     }
   }
 
-  // ── LOGIN PAGE ────────────────────────────────────────────────────────────
+  // ── HELPERS ───────────────────────────────────────────────────────────────
+
+  function formatTs(ts) {
+    if (!ts) return '—'
+    return new Date(ts).toLocaleString('en-GB', {
+      day: '2-digit', month: 'short', year: 'numeric',
+      hour: '2-digit', minute: '2-digit'
+    })
+  }
+
+  function changeReasonBadge(reason) {
+    const map = {
+      insert:  { bg: '#EAF3DE', color: '#27500A', label: 'Created' },
+      update:  { bg: '#E6F1FB', color: '#0C447C', label: 'Updated' },
+      delete:  { bg: '#FCEBEB', color: '#791F1F', label: 'Deleted' },
+    }
+    const style = map[reason] || { bg: '#F1EFE8', color: '#5F5E5A', label: reason }
+    return (
+      <span style={{
+        background: style.bg, color: style.color,
+        padding: '2px 8px', borderRadius: 3,
+        fontSize: 11, fontWeight: 600,
+      }}>
+        {style.label}
+      </span>
+    )
+  }
+
+  // ── LOGIN ─────────────────────────────────────────────────────────────────
 
   if (!loggedIn) {
     return (
@@ -246,19 +293,13 @@ export default function Admin() {
         <div className="login-wrap">
           <div className="login-card">
             <h2>Admin Login</h2>
-            <p>Session auto-expires after 15 minutes of inactivity.</p>
-            {loginErr && <div className="login-err">Incorrect password. Please try again.</div>}
-            {toast    && <div className="login-err" style={{ background: 'rgba(192,57,43,0.06)' }}>{toast.msg}</div>}
+            <p>Session expires after 15 minutes of inactivity.</p>
+            {loginErr && <div className="login-err">Incorrect password.</div>}
             <div className="form-group">
               <label>Password</label>
-              <input
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                autoFocus
+              <input type="password" placeholder="••••••••" value={password} autoFocus
                 onChange={e => { setPassword(e.target.value); setLoginErr(false) }}
-                onKeyDown={e => e.key === 'Enter' && handleLogin()}
-              />
+                onKeyDown={e => e.key === 'Enter' && handleLogin()} />
             </div>
             <button className="save-btn orange" style={{ width: '100%', marginTop: 0 }} onClick={handleLogin}>
               Login
@@ -272,7 +313,7 @@ export default function Admin() {
     )
   }
 
-  // ── ADMIN DASHBOARD ───────────────────────────────────────────────────────
+  // ── DASHBOARD ─────────────────────────────────────────────────────────────
 
   const totalRevenue = orders.reduce((sum, o) => {
     const m = meals.find(m => m.name === o.meal_name)
@@ -281,29 +322,20 @@ export default function Admin() {
 
   return (
     <>
-      <Head><title>Admin Dashboard — Ghar Ka Khana</title></Head>
+      <Head><title>Admin — Ghar Ka Khana</title></Head>
 
       <nav>
         <span className="nav-brand">Ghar Ka <span>Khana</span></span>
         <div className="nav-links">
-          <Link href="/" className="nav-btn">About Us</Link>
           <Link href="/" className="nav-btn">View Menu</Link>
           <button className="nav-btn" onClick={() => doLogout('manual')}>Logout</button>
         </div>
       </nav>
 
-      {/* SESSION WARNING */}
       {sessionWarning && (
-        <div style={{
-          background: '#FAEEDA', borderBottom: '2px solid #EF9F27',
-          padding: '10px 2rem', display: 'flex', alignItems: 'center',
-          justifyContent: 'space-between', fontSize: 13, color: '#633806',
-        }}>
-          <span>⏱ Your session expires in 2 minutes due to inactivity.</span>
-          <button onClick={resetSessionTimer} style={{
-            background: 'var(--saffron)', color: 'white', border: 'none',
-            padding: '5px 14px', borderRadius: 4, cursor: 'pointer', fontSize: 12, fontFamily: 'inherit',
-          }}>
+        <div style={{ background: '#FAEEDA', borderBottom: '2px solid #EF9F27', padding: '10px 2rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 13, color: '#633806' }}>
+          <span>⏱ Session expires in 2 minutes.</span>
+          <button onClick={resetSessionTimer} style={{ background: 'var(--saffron)', color: 'white', border: 'none', padding: '5px 14px', borderRadius: 4, cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>
             Stay logged in
           </button>
         </div>
@@ -319,15 +351,19 @@ export default function Admin() {
           <div className="tab-bar">
             <button className={tab === 'meals'    ? 'active' : ''} onClick={() => setTab('meals')}>Today's Meals</button>
             <button className={tab === 'orders'   ? 'active' : ''} onClick={() => setTab('orders')}>Orders ({orders.length})</button>
+            <button className={tab === 'history'  ? 'active' : ''} onClick={() => setTab('history')}>Meal History</button>
             <button className={tab === 'settings' ? 'active' : ''} onClick={() => setTab('settings')}>Settings</button>
           </div>
 
           {loading ? <div className="loading">Loading kitchen data...</div> : (<>
 
-            {/* ── MEALS ── */}
+            {/* ── MEALS TAB ── */}
             {tab === 'meals' && (
               <div>
                 <div className="admin-section-title">Manage Today's Meals</div>
+                <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: '1rem', padding: '8px 12px', background: '#E6F1FB', borderRadius: 6, borderLeft: '3px solid #85B7EB' }}>
+                  📋 SCD Type 2 enabled — every save creates a new version. History is never deleted. Click <strong>View History</strong> on any meal to see all past versions.
+                </div>
 
                 {meals.length === 0 && (
                   <div className="empty" style={{ marginBottom: '1rem' }}>
@@ -345,47 +381,60 @@ export default function Admin() {
                         <span>
                           {meal.name}
                           {meal.special && <span className="special-badge">Special</span>}
+                          <span style={{ fontSize: 11, color: 'var(--muted)', marginLeft: 8, fontFamily: 'var(--font-mono)' }}>
+                            key:{meal.meal_key}
+                          </span>
                         </span>
                         <div className="meal-edit-actions">
+                          <button
+                            style={{ background: 'none', border: '1px solid rgba(196,149,106,0.4)', color: 'var(--muted)', padding: '4px 10px', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}
+                            onClick={() => fetchHistory(meal.meal_key, meal.name)}
+                          >
+                            View History
+                          </button>
                           <label className="toggle-label">
-                            <input
-                              type="checkbox"
-                              checked={!!meal.enabled}
+                            <input type="checkbox" checked={!!meal.enabled}
                               onChange={() => {
                                 const updated = { ...meal, enabled: !meal.enabled }
                                 updateLocalMeal(meal.id, 'enabled', !meal.enabled)
                                 saveMeal(updated)
-                              }}
-                            /> Enabled
+                              }} /> Enabled
                           </label>
-                          <button className="del-btn" onClick={() => deleteMeal(meal.id)}>Remove</button>
+                          <button className="del-btn" onClick={() => deleteMeal(meal)}>Remove</button>
                         </div>
                       </div>
 
                       <div className="edit-grid">
                         <div className="edit-field">
                           <label>Meal Name</label>
-                          <input type="text" value={meal.name || ''} onChange={e => updateLocalMeal(meal.id, 'name', e.target.value)} />
+                          <input type="text" value={meal.name || ''}
+                            onChange={e => updateLocalMeal(meal.id, 'name', e.target.value)} />
                         </div>
                         <div className="edit-field">
                           <label>Price ({settings.currency})</label>
-                          <input type="number" value={meal.price || ''} min="1" onChange={e => updateLocalMeal(meal.id, 'price', Number(e.target.value))} />
+                          <input type="number" value={meal.price || ''} min="1"
+                            onChange={e => updateLocalMeal(meal.id, 'price', Number(e.target.value))} />
                         </div>
                         <div className="edit-field full">
-                          <label>Description</label>
-                          <textarea value={meal.description || ''} onChange={e => updateLocalMeal(meal.id, 'description', e.target.value)} />
+                          <label>Description (one item per line)</label>
+                          <textarea value={meal.description || ''}
+                            onChange={e => updateLocalMeal(meal.id, 'description', e.target.value)} />
                         </div>
                         <div className="edit-field full">
                           <label>Components (comma separated)</label>
-                          <input type="text" value={comps} onChange={e => updateLocalMeal(meal.id, 'components', e.target.value.split(',').map(s => s.trim()).filter(Boolean))} />
+                          <input type="text" value={comps}
+                            onChange={e => updateLocalMeal(meal.id, 'components',
+                              e.target.value.split(',').map(s => s.trim()).filter(Boolean))} />
                         </div>
                         <div className="edit-field">
                           <label>Sold Today</label>
-                          <input type="number" value={meal.sold || 0} min="0" onChange={e => updateLocalMeal(meal.id, 'sold', Number(e.target.value))} />
+                          <input type="number" value={meal.sold || 0} min="0"
+                            onChange={e => updateLocalMeal(meal.id, 'sold', Number(e.target.value))} />
                         </div>
                         <div className="edit-field">
                           <label>Meal Type</label>
-                          <select value={meal.special ? 'special' : 'regular'} onChange={e => updateLocalMeal(meal.id, 'special', e.target.value === 'special')}>
+                          <select value={meal.special ? 'special' : 'regular'}
+                            onChange={e => updateLocalMeal(meal.id, 'special', e.target.value === 'special')}>
                             <option value="regular">Regular</option>
                             <option value="special">Weekend Special</option>
                           </select>
@@ -393,7 +442,7 @@ export default function Admin() {
                       </div>
 
                       <button className="save-btn" onClick={() => saveMeal(meal)} disabled={saving}>
-                        {saving ? 'Saving...' : 'Save Changes'}
+                        {saving ? 'Saving new version...' : 'Save Changes'}
                       </button>
                     </div>
                   )
@@ -402,15 +451,10 @@ export default function Admin() {
                 <button className="add-meal-btn" onClick={addMeal} disabled={addingMeal}>
                   {addingMeal ? '⏳ Adding meal...' : '+ Add New Meal'}
                 </button>
-                {addingMeal && (
-                  <p style={{ fontSize: 12, color: 'var(--muted)', textAlign: 'center', marginTop: 6 }}>
-                    Saving to database — please wait...
-                  </p>
-                )}
               </div>
             )}
 
-            {/* ── ORDERS ── */}
+            {/* ── ORDERS TAB ── */}
             {tab === 'orders' && (
               <div>
                 <div className="admin-section-title">Today's Orders</div>
@@ -442,14 +486,82 @@ export default function Admin() {
                   )
                 }
                 <div className="orders-summary">
-                  📊 Total orders: <strong style={{ color: 'var(--text)' }}>{orders.length}</strong>
-                  &nbsp;·&nbsp;
+                  📊 Total: <strong style={{ color: 'var(--text)' }}>{orders.length}</strong> &nbsp;·&nbsp;
                   Revenue: <strong style={{ color: 'var(--green)' }}>{settings.currency}{totalRevenue.toFixed(2)}</strong>
                 </div>
               </div>
             )}
 
-            {/* ── SETTINGS ── */}
+            {/* ── HISTORY TAB ── */}
+            {tab === 'history' && (
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                  <div className="admin-section-title" style={{ marginBottom: 0 }}>
+                    Version History {historyMeal ? `— ${historyMeal}` : ''}
+                  </div>
+                  <button
+                    onClick={() => setTab('meals')}
+                    style={{ background: 'none', border: '1px solid rgba(196,149,106,0.4)', color: 'var(--muted)', padding: '5px 12px', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}
+                  >
+                    ← Back to Meals
+                  </button>
+                </div>
+
+                {historyLoading ? (
+                  <div className="loading">Loading history...</div>
+                ) : historyData.length === 0 ? (
+                  <div className="empty">
+                    No history found. Click <strong>View History</strong> on a meal to see its versions.
+                  </div>
+                ) : (
+                  <>
+                    <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: '1rem', padding: '8px 12px', background: '#EAF3DE', borderRadius: 6, borderLeft: '3px solid #97C459' }}>
+                      📋 Showing all {historyData.length} version{historyData.length !== 1 ? 's' : ''} for this meal.
+                      Versions are ordered oldest → newest. The current active version is highlighted.
+                    </div>
+                    <div style={{ overflowX: 'auto' }}>
+                      <table className="orders-table">
+                        <thead>
+                          <tr>
+                            <th>Version</th>
+                            <th>Change</th>
+                            <th>Name</th>
+                            <th>Price</th>
+                            <th>Enabled</th>
+                            <th>Effective From</th>
+                            <th>Effective To</th>
+                            <th>Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {historyData.map((v, i) => (
+                            <tr key={v.id} style={{ background: v.is_current ? 'rgba(234,243,222,0.5)' : 'transparent' }}>
+                              <td style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--muted)' }}>v{i + 1}</td>
+                              <td>{changeReasonBadge(v.change_reason)}</td>
+                              <td style={{ fontWeight: v.is_current ? 500 : 400 }}>{v.name}</td>
+                              <td>{settings.currency}{v.price}</td>
+                              <td>{v.enabled ? '✓' : '✗'}</td>
+                              <td style={{ whiteSpace: 'nowrap', fontSize: 12 }}>{formatTs(v.effective_from)}</td>
+                              <td style={{ whiteSpace: 'nowrap', fontSize: 12, color: v.effective_to ? 'var(--muted)' : 'var(--green)' }}>
+                                {v.effective_to ? formatTs(v.effective_to) : 'Active'}
+                              </td>
+                              <td>
+                                {v.is_current
+                                  ? <span style={{ background: '#EAF3DE', color: '#27500A', padding: '2px 8px', borderRadius: 3, fontSize: 11, fontWeight: 600 }}>Current</span>
+                                  : <span style={{ color: 'var(--muted)', fontSize: 11 }}>Superseded</span>
+                                }
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* ── SETTINGS TAB ── */}
             {tab === 'settings' && (
               <div>
                 <div className="admin-section-title">Daily Settings</div>
@@ -476,17 +588,15 @@ export default function Admin() {
                 <div style={{ marginTop: '2rem', paddingTop: '1.5rem', borderTop: '1px solid rgba(196,149,106,0.2)' }}>
                   <div className="admin-section-title">New Day Reset</div>
                   <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: '1rem', lineHeight: 1.6 }}>
-                    Run every morning to reset sold counts to zero and clear yesterday's orders.
+                    Resets all sold counts to zero and clears today's orders. Meal versions and history are never deleted.
                   </p>
                   <button className="save-btn danger" onClick={resetDay}>🔄 Reset for New Day</button>
                 </div>
 
                 <div style={{ marginTop: '2rem', paddingTop: '1.5rem', borderTop: '1px solid rgba(196,149,106,0.2)' }}>
-                  <div className="admin-section-title">Session Security</div>
+                  <div className="admin-section-title">SCD Type 2 — Meal Versioning</div>
                   <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.6 }}>
-                    Admin sessions automatically expire after <strong>15 minutes of inactivity</strong>.
-                    A warning appears 2 minutes before expiry. Any mouse movement, typing, or scrolling resets the timer.
-                    To change your admin password, update <code>NEXT_PUBLIC_ADMIN_PASSWORD</code> in your Vercel environment variables.
+                    Every time you save or remove a meal, the previous version is preserved with an end date. No meal data is ever permanently deleted. View the full version history for any meal by clicking <strong>View History</strong> on the Today's Meals tab.
                   </p>
                 </div>
               </div>
